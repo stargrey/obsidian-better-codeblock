@@ -63,7 +63,6 @@ export default class BetterCodeBlock extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new BetterCodeBlockTab(this.app, this));
 		this.registerMarkdownPostProcessor((el, ctx) => {
-			console.log(ctx.sourcePath)
 			BetterCodeBlocks(el, this)
 		})
 	}
