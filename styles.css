@@ -105,3 +105,11 @@ pre[class*=language-].code-block-pre__has-linenum {
 .obsidian-embedded-code-title__code-block-title[closed] + code + span{
   height: 0;
 }
+
+.obsidian-embedded-code-title__code-block-title[closed] + code + span span{
+  visibility: hidden;
+}
+
+.obsidian-embedded-code-title__code-block-title[closed] + code + span + span span{
+  visibility: hidden;
+}
