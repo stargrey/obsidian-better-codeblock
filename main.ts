@@ -284,6 +284,14 @@ function addCodeTitle (plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta:
 	collapser.appendChild(handle)
 	d.appendChild(collapser)
 
+
+	let langName = document.createElement("div"); // 在右侧添加代码类型
+	let langNameString = cbMeta.langName.split(":")[0]
+	langNameString = langNameString[0].toUpperCase() + langNameString.slice(1) // 首字母大写
+	langName.appendText(langNameString);
+	langName.className = "langName";
+	d.appendChild(langName);
+
 	d.addEventListener('click',function(this) {
 		if(d.hasAttribute("closed")){
 			d.removeAttribute("closed")

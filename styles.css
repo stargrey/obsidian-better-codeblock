@@ -76,6 +76,16 @@ pre[class*=language-].code-block-pre__has-linenum {
   height: 35px !important;
   color: currentColor !important;
 }
+
+.obsidian-embedded-code-title__code-block-title .langName {
+  display: inline;
+  float: right;
+  line-height: 29px;
+  margin-right: 35px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
 .obsidian-embedded-code-title__code-block-title .collapser {
   position: absolute;
   top: 50%;
