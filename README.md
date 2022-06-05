@@ -19,6 +19,8 @@ In version 1.0.5, use the syntax in the diagram below to set the block title, hi
 - Use `HL:"numbers"` to add highlight, such as `HL:"1,2,3"`, `HL:"1-3"`, separate by `,`
 - Use `"FOLD"` to set the default fold
 
+If you have a better idea, please submit an issue
+
 ![image20220606011534.png](screenshots/image20220606011534.png)
 
 In version 1.0.4, add the language in the top right, like this:
