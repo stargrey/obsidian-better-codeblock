@@ -1,4 +1,5 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, MarkdownPostProcessorContext, Menu, SettingTab } from 'obsidian';
+import { linkSync } from 'fs';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, MarkdownPostProcessorContext, Menu, SettingTab, TAbstractFile, TFile } from 'obsidian';
 
 const DEFAULT_LANG_ATTR = 'language-text'
 const DEFAULT_LANG = ''
@@ -11,22 +12,26 @@ interface Settings {
 	substitutionTokenForSpace: string;
 	titleBackgroundColor: string;
 	titleFontColor: string;
+	highLightColor: string;
 
 	excludeLangs: string[]; // 需要排除的语言
 
 	showLineNumber: boolean; // 显示行号
-	showDividingLine: boolean
+	showDividingLine: boolean;
+	showLangNameInTopRight: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
 	substitutionTokenForSpace: undefined,
 	titleBackgroundColor: "#00000020",
 	titleFontColor: undefined,
+	highLightColor: "#2d82cc20",
 
 	excludeLangs: [],
 
 	showLineNumber: true,
-	showDividingLine: false
+	showDividingLine: false,
+	showLangNameInTopRight: true
 };
 
 interface CodeBlockMeta {
@@ -48,6 +53,7 @@ interface CodeBlockMeta {
 	// Code block wrap div
 	div: HTMLElement;
 	contentList: string[];
+	highLightLines: number[];
 }
 
 // Refer https://developer.mozilla.org/ja/docs/Web/JavaScript/Guide/Regular_Expressions#escaping
@@ -63,7 +69,7 @@ export default class BetterCodeBlock extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new BetterCodeBlockTab(this.app, this));
 		this.registerMarkdownPostProcessor((el, ctx) => {
-			BetterCodeBlocks(el, this)
+			BetterCodeBlocks(el, ctx, this)
 		})
 	}
 
@@ -103,18 +109,6 @@ class BetterCodeBlockTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		})
 		)
-	  new Setting(containerEl)
-		.setName("Substitution token for space")
-		.setDesc("The token which substitutes to space.")
-		.addText((tc) =>
-		  tc
-			.setPlaceholder("Enter a token")
-			.setValue(this.plugin.settings.substitutionTokenForSpace)
-			.onChange(async (value) => {
-			  this.plugin.settings.substitutionTokenForSpace = value;
-			  await this.plugin.saveSettings();
-			})
-		);
   
 	  new Setting(containerEl).setName("Font color of title").addText((tc) =>
 		tc
@@ -139,6 +133,18 @@ class BetterCodeBlockTab extends PluginSettingTab {
 		);
 
 		new Setting(containerEl)
+		.setName("HighLight Color")
+		.addText((tc) =>
+		  tc
+			.setPlaceholder("#2d82cc20")
+			.setValue(this.plugin.settings.highLightColor)
+			.onChange(async (value) => {
+			  this.plugin.settings.highLightColor = value;
+			  await this.plugin.saveSettings();
+			})
+		);
+
+		new Setting(containerEl)
 		.setName("Show line number")
 		.addToggle((tc) => 
 		tc.setValue(this.plugin.settings.showLineNumber)
@@ -157,12 +163,22 @@ class BetterCodeBlockTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		})
 		)
+
+		new Setting(containerEl)
+		.setName("Show language name in the top right")
+		.addToggle((tc) =>
+		tc.setValue(this.plugin.settings.showLangNameInTopRight)
+		.onChange(async(value) => {
+			this.plugin.settings.showLangNameInTopRight = value;
+			await this.plugin.saveSettings();
+		})
+		)
 	}
   }
 
-export function BetterCodeBlocks(el: HTMLElement, plugin: BetterCodeBlock) {
+export function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostProcessorContext, plugin: BetterCodeBlock) {
 	const settings = plugin.settings
-
+	
 	const codeElm: HTMLElement = el.querySelector('pre > code')
 	// only change pre>code
 	if (!codeElm) {
@@ -181,43 +197,44 @@ export function BetterCodeBlocks(el: HTMLElement, plugin: BetterCodeBlock) {
 		return
 	  }
 	})
+
 	// if the code block is not described, return
 	if(lang == DEFAULT_LANG) {
 		return
 	}
 
-	let title;
+	let titleRegExp = /TI:"([^"]*)"/i
+	let highLightLinesRegExp = /HL:"([^"]*)"/i
+	let foldRegExp = /"FOLD"/i
+
+	let codeBlock = context.getSectionInfo(codeElm)
+	let view = app.workspace.getActiveViewOfType(MarkdownView)
+	let codeBlockFirstLine = view.editor.getLine(codeBlock.lineStart)
+
+	let title: string = ""
+	let highLightLines: number[] = []
+	if(codeBlockFirstLine.match(titleRegExp) != null) {
+		title = codeBlockFirstLine.match(titleRegExp)[1]
+	}
+	if(codeBlockFirstLine.match(highLightLinesRegExp) != null) {
+		let highLightLinesInfo = codeBlockFirstLine.match(highLightLinesRegExp)[1]
+		highLightLines = analyseHighLightLines(highLightLinesInfo)
+	}
+
 	let isCollapse = false;
-
-	if(codeElm.className.contains(":-")) {
-		isCollapse = true;
-	}
-	const classNames = codeElm.className.split(":");
-	title = classNames?.[1];
-
-	if(title == undefined){
-		title = ""
-	}
-	if(title.startsWith("-")) {
-		title = title.substring(1)
+	if(foldRegExp.test(codeBlockFirstLine)) {
+		isCollapse = true
 	}
 
-	if (settings.substitutionTokenForSpace) {
-	  title = title.replace(
-		new RegExp(escapeRegExp(settings.substitutionTokenForSpace), "g"),
-		" "
-	  );
-	}
-
-	const pre = codeElm.parentElement
-	const div = pre.parentElement
+	const pre = codeElm.parentElement // code-block-pre__has-linenum
+	const div = pre.parentElement // class code-block-wrap
 
 	/* const { lineStart, lineEnd } = ctx.getSectionInfo(el)
 	const lineSize = lineEnd - lineStart - 1 */
 	const contentList: string[] = codeElm.textContent.split(LINE_SPLIT_MARK)
 	const lineSize = contentList.length - 1
 
-	const cbMeta: CodeBlockMeta = { langName: lang, lineSize, pre, code: codeElm, title, isCollapse, div, contentList }
+	const cbMeta: CodeBlockMeta = { langName: lang, lineSize, pre, code: codeElm, title, isCollapse, div, contentList, highLightLines}
 
 	const {showLineNumber} = plugin.settings
 
@@ -227,6 +244,8 @@ export function BetterCodeBlocks(el: HTMLElement, plugin: BetterCodeBlock) {
 	if (showLineNumber) {
 		addLineNumber(plugin, cbMeta)
 	}
+
+	addLineHighLight(plugin, pre, cbMeta)
 }
 
 function createElement (tagName: string, defaultClassName?: string) {
@@ -259,16 +278,19 @@ function addLineNumber (plugin: BetterCodeBlock, cbMeta: CodeBlockMeta) {
 	pre.classList.add('code-block-pre__has-linenum')
 }
 
+
 function addCodeTitle (plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta: CodeBlockMeta) {
 	wrapperElm.style.setProperty("position", "relative", "important");
 	wrapperElm.style.setProperty("padding-top", CB_PADDING_TOP, "important");
 
 	wrapperElm
 	  .querySelectorAll(".obsidian-embedded-code-title__code-block-title")
-	  .forEach((x) => x.remove());
+	  .forEach((x) => x.remove()); // 防抖动
 
 	let d = document.createElement("pre");
-	d.appendText(cbMeta.title);
+	// d.appendText(cbMeta.title);
+	d.appendText(cbMeta.title)
+
 	if(cbMeta.isCollapse) {
 		d.setAttribute("closed","")
 	}
@@ -284,14 +306,14 @@ function addCodeTitle (plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta:
 	collapser.appendChild(handle)
 	d.appendChild(collapser)
 
-
-	let langName = document.createElement("div"); // 在右侧添加代码类型
-	let langNameString = cbMeta.langName.split(":")[0]
-	langNameString = langNameString[0].toUpperCase() + langNameString.slice(1) // 首字母大写
-	langName.appendText(langNameString);
-	langName.className = "langName";
-	d.appendChild(langName);
-
+	if(plugin.settings.showLangNameInTopRight) {
+		let langName = document.createElement("div"); // 在右侧添加代码类型
+		let langNameString = cbMeta.langName
+		langNameString = langNameString[0].toUpperCase() + langNameString.slice(1) // 首字母大写
+		langName.appendText(langNameString);
+		langName.className = "langName";
+		d.appendChild(langName);
+	}
 	d.addEventListener('click',function(this) {
 		if(d.hasAttribute("closed")){
 			d.removeAttribute("closed")
@@ -300,4 +322,38 @@ function addCodeTitle (plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta:
 		}
 	})
 	wrapperElm.prepend(d);
+}
+
+function addLineHighLight(plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta: CodeBlockMeta) {
+	if(cbMeta.highLightLines.length == 0) return
+
+	let highLightWrap = document.createElement("pre")
+	highLightWrap.className = "code-block-highlight-wrap"
+	for(let i = 0; i < cbMeta.lineSize; i++) {
+		const singleLine = createElement("span", 'code-block-highlight')
+		if(cbMeta.highLightLines.contains(i+1)) {
+			singleLine.style.backgroundColor = plugin.settings.highLightColor || "#2d82cc20"
+		}
+		highLightWrap.appendChild(singleLine)
+	}
+
+	wrapperElm.appendChild(highLightWrap)
+}
+
+function analyseHighLightLines(str: string): number[] {
+	str = str.replace(/\s*/g, "") // 去除字符串中所有空格
+	const result: number[] = []
+
+	let strs = str.split(",")
+	strs.forEach(it => {
+		if(/\w-\w/.test(it)) { // 如果匹配 1-3 这样的格式，依次添加数字
+			for(let i = Number(it[0]); i <= Number(it[2]); i++) {
+				result.push(i)
+			}
+		} else {
+			result.push(Number(it))
+		}
+	})
+
+	return result
 }

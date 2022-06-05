@@ -11,11 +11,15 @@ https://github.com/nyable/obsidian-code-block-enhancer
 I have merged the code in both plugins and modified some of their functionality.
 
 ### Features
-Enhancer the markdown code block in preview mode. Add title(have a bug now), line number to code blocks, you can click on the title to collapse or expand the block.
+Enhancer the markdown code block in preview mode. Add title, line number, highlight to code blocks, you can click on the title to collapse or expand the block.
 
-Use the syntax in the diagram below to set the block title, whether it is collapsed by default.
+In version 1.0.5, use the syntax in the diagram below to set the block title, highlight, fold
 
-![image-20220402200431096](screenshots/image-20220402200431096.png)
+- Use `TI:"your title"` to add title
+- Use `HL:"numbers"` to add highlight, such as `HL:"1,2,3"`, `HL:"1-3"`, separate by `,`
+- Use `"FOLD"` to set the default fold
+
+![image20220606011534.png](screenshots/image20220606011534.png)
 
 In version 1.0.4, add the language in the top right, like this:
 ![screenshots/image-20220601202203.png](screenshots/image-20220601202203.png)

@@ -19,6 +19,7 @@
 pre[class*=language-] {
   font-size: var(--editor-font-size);
   line-height: 1.5em;
+  padding-bottom: 0px;
 }
 .obsidian-embedded-code-title__code-block-title + code[class*=language-]{
   padding: 0em 0em 0em 0em !important;
@@ -66,6 +67,25 @@ pre[class*=language-].code-block-pre__has-linenum {
   content: counter(line-num);
 }
 
+/* 代码高亮 */
+pre[class*=language-] .code-block-highlight-wrap {
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  left: 0px;
+  top: 35px;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  pointer-events: none;
+}
+
+pre[class*=language-] .code-block-highlight-wrap span {
+  display: block;
+  height: 1.5em;
+  width: 100%;
+}
+
 /* 折叠代码块 */
 
 :root {
@@ -84,6 +104,7 @@ pre[class*=language-].code-block-pre__has-linenum {
   margin-right: 35px;
   font-weight: bold;
   font-size: 14px;
+  font-family: var(--font-default);
 }
 
 .obsidian-embedded-code-title__code-block-title .collapser {
