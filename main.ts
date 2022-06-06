@@ -346,8 +346,10 @@ function analyseHighLightLines(str: string): number[] {
 
 	let strs = str.split(",")
 	strs.forEach(it => {
-		if(/\w-\w/.test(it)) { // 如果匹配 1-3 这样的格式，依次添加数字
-			for(let i = Number(it[0]); i <= Number(it[2]); i++) {
+		if(/\w+-\w+/.test(it)) { // 如果匹配 1-3 这样的格式，依次添加数字
+			let left = Number(it.split('-')[0])
+			let right = Number(it.split('-')[1])
+			for(let i = left; i <= right; i++) {
 				result.push(i)
 			}
 		} else {
