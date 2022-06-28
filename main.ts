@@ -1,10 +1,15 @@
 import { linkSync } from 'fs';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, MarkdownPostProcessorContext, Menu, SettingTab, TAbstractFile, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, MarkdownPostProcessorContext, Menu, SettingTab, TAbstractFile, TFile, SectionCache, Vault } from 'obsidian';
+import { json } from 'stream/consumers';
 
 const DEFAULT_LANG_ATTR = 'language-text'
 const DEFAULT_LANG = ''
 const LANG_REG = /^language-/
 const LINE_SPLIT_MARK = '\n'
+
+const titleRegExp = /TI:"([^"]*)"/i
+const highLightLinesRegExp = /HL:"([^"]*)"/i
+const foldRegExp = /"FOLD"/i
 
 const CB_PADDING_TOP = "35px" // 代码块上边距
 
@@ -70,7 +75,11 @@ export default class BetterCodeBlock extends Plugin {
 		this.addSettingTab(new BetterCodeBlockTab(this.app, this));
 		this.registerMarkdownPostProcessor((el, ctx) => {
 			BetterCodeBlocks(el, ctx, this)
+			app.workspace.on('resize', () => {
+				resizeNumWrapAndHLWrap(el, ctx)
+			})
 		})
+
 	}
 
 	onunload () {
@@ -176,14 +185,12 @@ class BetterCodeBlockTab extends PluginSettingTab {
 	}
   }
 
-export function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostProcessorContext, plugin: BetterCodeBlock) {
+
+export async function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostProcessorContext, plugin: BetterCodeBlock) {
 	const settings = plugin.settings
-	
 	const codeElm: HTMLElement = el.querySelector('pre > code')
 	// only change pre>code
-	if (!codeElm) {
-	  return
-	}
+	if (!codeElm) { return }
 
 	let lang = DEFAULT_LANG
 	// return when lang is in exclude list
@@ -203,13 +210,32 @@ export function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostProcessor
 		return
 	}
 
-	let titleRegExp = /TI:"([^"]*)"/i
-	let highLightLinesRegExp = /HL:"([^"]*)"/i
-	let foldRegExp = /"FOLD"/i
-
 	let codeBlock = context.getSectionInfo(codeElm)
-	let view = app.workspace.getActiveViewOfType(MarkdownView)
-	let codeBlockFirstLine = view.editor.getLine(codeBlock.lineStart)
+	let codeBlockFirstLine = ""
+
+	if(codeBlock) {
+		let view = app.workspace.getActiveViewOfType(MarkdownView)
+		codeBlockFirstLine = view.editor.getLine(codeBlock.lineStart)
+	} else { 
+		let file = app.vault.getAbstractFileByPath(context.sourcePath)
+		let cache = app.metadataCache.getCache(context.sourcePath)
+		let fileContent = await app.vault.cachedRead(<TFile> file)
+		let fileContentLines = fileContent.split(/\n/g)
+
+		let codeBlockFirstLines: string[] = []
+		let codeBlockSections: SectionCache[] = []
+
+		cache.sections?.forEach(async element => {
+			if(element.type == "code") {
+				let lineStart = element.position.start.line
+				codeBlockFirstLine = fileContentLines[lineStart]
+				codeBlockSections.push(element)
+				codeBlockFirstLines.push(codeBlockFirstLine)
+			}
+		});
+		exportPDF(el, plugin, codeBlockFirstLines, codeBlockSections)
+		return
+	}
 
 	let title: string = ""
 	let highLightLines: number[] = []
@@ -234,10 +260,12 @@ export function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostProcessor
 	const contentList: string[] = codeElm.textContent.split(LINE_SPLIT_MARK)
 	const lineSize = contentList.length - 1
 
-	const cbMeta: CodeBlockMeta = { langName: lang, lineSize, pre, code: codeElm, title, isCollapse, div, contentList, highLightLines}
+	const cbMeta = { langName: lang, lineSize, pre, code: codeElm, title, isCollapse, div, contentList, highLightLines}
 
 	const {showLineNumber} = plugin.settings
 
+	addCodeTitleWrapper(plugin, pre, cbMeta)
+	//addIconToTitle(plugin, pre, cbMeta)
 	addCodeTitle(plugin, pre, cbMeta);
 
 	// add line number
@@ -246,6 +274,8 @@ export function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostProcessor
 	}
 
 	addLineHighLight(plugin, pre, cbMeta)
+
+	resizeNumWrapAndHLWrap(el,context) // 调用一次以解决某些时候打开文件行高未被重设高度
 }
 
 function createElement (tagName: string, defaultClassName?: string) {
@@ -256,10 +286,65 @@ function createElement (tagName: string, defaultClassName?: string) {
 	return element
 }
 
+function addCodeTitleWrapper(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
+	preElm.style.setProperty("position", "relative", "important");
+	preElm.style.setProperty("padding-top", CB_PADDING_TOP, "important");
+
+	let wrapper = document.createElement("pre")
+	if(cbMeta.isCollapse) {
+		wrapper.setAttribute("closed","")
+	}
+	wrapper.className = "obsidian-embedded-code-title__code-block-title"
+
+	wrapper.style.backgroundColor = plugin.settings.titleBackgroundColor || "#00000020";
+
+	let collapser = createElement("div","collapser")
+	let handle = createElement("div", "handle")
+	collapser.appendChild(handle)
+	wrapper.appendChild(collapser)
+
+	wrapper.addEventListener('click',function(this: any) {
+		if(wrapper.hasAttribute("closed")){
+			wrapper.removeAttribute("closed")
+		} else {
+			wrapper.setAttribute("closed",'')
+		}
+	})
+
+	preElm.appendChild(wrapper)
+}
+
+function addCodeTitle (plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
+	let wrapper = preElm.querySelector(".obsidian-embedded-code-title__code-block-title")
+
+	let titleElm = document.createElement("div")
+	titleElm.className = "title"
+
+	titleElm.appendText(cbMeta.title)
+	wrapper.appendChild(titleElm)
+
+	if(plugin.settings.titleFontColor) {
+		titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important")
+	}
+	
+	if(plugin.settings.showLangNameInTopRight) {
+		let langName = document.createElement("div"); // 在右侧添加代码类型
+		let langNameString = cbMeta.langName
+		langNameString = langNameString[0].toUpperCase() + langNameString.slice(1) // 首字母大写
+		langName.appendText(langNameString);
+		langName.className = "langName";
+		wrapper.appendChild(langName);
+	}
+
+	preElm.prepend(wrapper);
+
+}
+
 function addLineNumber (plugin: BetterCodeBlock, cbMeta: CodeBlockMeta) {
 	const { lineSize, pre, div } = cbMeta
 	// let div position: relative;
 	div.classList.add('code-block-wrap')
+
 	// const { fontSize, lineHeight } = window.getComputedStyle(cbMeta.code)
 	const lineNumber = createElement('span', 'code-block-linenum-wrap')
 	lineNumber.style.top = CB_PADDING_TOP;
@@ -278,53 +363,7 @@ function addLineNumber (plugin: BetterCodeBlock, cbMeta: CodeBlockMeta) {
 	pre.classList.add('code-block-pre__has-linenum')
 }
 
-
-function addCodeTitle (plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta: CodeBlockMeta) {
-	wrapperElm.style.setProperty("position", "relative", "important");
-	wrapperElm.style.setProperty("padding-top", CB_PADDING_TOP, "important");
-
-	wrapperElm
-	  .querySelectorAll(".obsidian-embedded-code-title__code-block-title")
-	  .forEach((x) => x.remove()); // 防抖动
-
-	let d = document.createElement("pre");
-	// d.appendText(cbMeta.title);
-	d.appendText(cbMeta.title)
-
-	if(cbMeta.isCollapse) {
-		d.setAttribute("closed","")
-	}
-	d.className = "obsidian-embedded-code-title__code-block-title";
-
-	if(plugin.settings.titleFontColor) {
-		d.style.setProperty("color", plugin.settings.titleFontColor, "important")
-	}
-	d.style.backgroundColor = plugin.settings.titleBackgroundColor || "#00000020";
-
-	let collapser = createElement("div","collapser")
-	let handle = createElement("div", "handle")
-	collapser.appendChild(handle)
-	d.appendChild(collapser)
-
-	if(plugin.settings.showLangNameInTopRight) {
-		let langName = document.createElement("div"); // 在右侧添加代码类型
-		let langNameString = cbMeta.langName
-		langNameString = langNameString[0].toUpperCase() + langNameString.slice(1) // 首字母大写
-		langName.appendText(langNameString);
-		langName.className = "langName";
-		d.appendChild(langName);
-	}
-	d.addEventListener('click',function(this) {
-		if(d.hasAttribute("closed")){
-			d.removeAttribute("closed")
-		} else {
-			d.setAttribute("closed",'')
-		}
-	})
-	wrapperElm.prepend(d);
-}
-
-function addLineHighLight(plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMeta: CodeBlockMeta) {
+function addLineHighLight(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
 	if(cbMeta.highLightLines.length == 0) return
 
 	let highLightWrap = document.createElement("pre")
@@ -337,7 +376,7 @@ function addLineHighLight(plugin: BetterCodeBlock, wrapperElm: HTMLElement, cbMe
 		highLightWrap.appendChild(singleLine)
 	}
 
-	wrapperElm.appendChild(highLightWrap)
+	preElm.appendChild(highLightWrap)
 }
 
 function analyseHighLightLines(str: string): number[] {
@@ -358,4 +397,133 @@ function analyseHighLightLines(str: string): number[] {
 	})
 
 	return result
+}
+
+function addIconToTitle(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
+	let title = preElm.querySelectorAll(".obsidian-embedded-code-title__code-block-title")
+
+	title.forEach(it => {
+		let iconWrap = createElement("div","icon-wrap")
+		let icon = document.createElement("img")
+		icon.src = ""
+		iconWrap.appendChild(icon)
+		it.appendChild(iconWrap)
+	})
+	
+}
+
+// 在自动换行时对数字和高亮行重新设置高度
+// These codes refer to the https://github.com/lijyze/obsidian-advanced-codeblock
+function resizeNumWrapAndHLWrap(el: HTMLElement, context: MarkdownPostProcessorContext) {
+	setTimeout(async function(){ // 延时100毫秒以解决某些时候打开文件行高未被重设高度
+		// console.log('on esize')
+		let codeBlockEl : HTMLElement = el.querySelector('pre > code')
+		if(!codeBlockEl) return
+
+		let numWrap = el.querySelector('.code-block-linenum-wrap')
+		let highWrap = el.querySelector('.code-block-highlight-wrap')
+
+		let codeBlockInfo = context.getSectionInfo(codeBlockEl)
+		// let view = app.workspace.getActiveViewOfType(MarkdownView)
+		// let codeBlockLineNum = codeBlockInfo.lineEnd - codeBlockInfo.lineStart - 1 // 除去首尾两行
+		let view
+		let codeBlockLineNum
+
+		let lineStart = 0
+		let lineEnd = 0
+		if(codeBlockInfo) {
+			view = app.workspace.getActiveViewOfType(MarkdownView)
+			codeBlockLineNum = codeBlockInfo.lineEnd - codeBlockInfo.lineStart - 1 // 除去首尾两行
+		} else {
+			return
+			// let file = app.vault.getAbstractFileByPath(context.sourcePath)
+			// let cache = app.metadataCache.getCache(context.sourcePath)
+	
+			// cache.sections?.forEach(async element => {
+			// 	if(element.type == "code") {
+			// 		lineStart = element.position.start.line
+			// 		lineEnd = element.position.end.line
+			// 		codeBlockLineNum = lineEnd - lineStart - 1
+			// 		return
+			// 	}
+			// });
+			// let file = app.vault.getAbstractFileByPath(context.sourcePath)
+			// let cache = app.metadataCache.getCache(context.sourcePath)
+			// let fileContent = await app.vault.cachedRead(<TFile> file)
+			// let fileContentLines = fileContent.split(/\n/g)
+		}
+
+		let span = createElement("span")
+
+		for(let i = 0; i < codeBlockLineNum; i++) {
+			let oneLineText
+			if(view){
+				oneLineText = view.editor.getLine(codeBlockInfo.lineStart + i + 1)
+			} else {
+				// oneLineText = fileContentLines[lineStart + 1 + i]
+				// let file = app.vault.getAbstractFileByPath(context.sourcePath)
+				// let cache = app.metadataCache.getCache(context.sourcePath)
+				// let fileContent = await app.vault.cachedRead(<TFile> file)
+				// let fileContentLines = fileContent.split(/\n/g)
+				// oneLineText = fileContentLines[cache.sections]
+			}
+			span.innerHTML = oneLineText || "0"
+
+			codeBlockEl.appendChild(span)
+			span.style.display = 'block'
+
+			let lineHeight = span.getBoundingClientRect().height + 'px' // 测量本行文字的高度
+
+			// console.log(lineHeight + '    ' + span.getBoundingClientRect().width);
+			
+			let numOneLine = numWrap? numWrap.childNodes[i] as HTMLElement : null
+			let hlOneLine = highWrap? highWrap.childNodes[i] as HTMLElement : null
+
+			if(numOneLine) numOneLine.style.height = lineHeight;
+			if(hlOneLine) hlOneLine.style.height = lineHeight;
+
+			span.remove() // 测量完后删掉
+		}
+	}, 100)
+}
+
+function exportPDF(el: HTMLElement, plugin: BetterCodeBlock, codeBlockFirstLines: string[], codeBlockSections: SectionCache[]) {
+	let codeBlocks = el.querySelectorAll('pre > code')
+	codeBlocks.forEach((codeElm, key) => {
+		let langName = "", title = "", highLightLines: number[] = []
+		codeElm.classList.forEach(value => {
+			if(LANG_REG.test(value)) {
+				langName = value.replace('language-', '')
+				return
+			}
+		})
+
+		if(codeBlockFirstLines[key].match(titleRegExp) != null) {
+			title = codeBlockFirstLines[key].match(titleRegExp)[1]
+		}
+		if(codeBlockFirstLines[key].match(highLightLinesRegExp) != null) {
+			let highLightLinesInfo = codeBlockFirstLines[key].match(highLightLinesRegExp)[1]
+			highLightLines = analyseHighLightLines(highLightLinesInfo)
+		}
+
+		let lineSize = codeBlockSections[key].position.end.line - codeBlockSections[key].position.start.line - 1
+
+		let cbMeta: CodeBlockMeta = {
+			langName: langName,
+			lineSize: lineSize,
+			pre: codeElm.parentElement,
+			code: codeElm as HTMLElement,
+			title: title,
+			isCollapse: false,
+			div: codeElm.parentElement.parentElement,
+			contentList: [],
+			highLightLines: highLightLines
+		}
+		addCodeTitleWrapper(plugin, codeElm.parentElement, cbMeta) // 导出取消代码块折叠
+		addCodeTitle(plugin, cbMeta.pre, cbMeta)
+		if(plugin.settings.showLineNumber) {
+			addLineNumber(plugin, cbMeta)
+		}
+		addLineHighLight(plugin, cbMeta.pre, cbMeta)
+	})
 }

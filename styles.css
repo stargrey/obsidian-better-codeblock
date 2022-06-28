@@ -144,3 +144,32 @@ pre[class*=language-] .code-block-highlight-wrap span {
 .obsidian-embedded-code-title__code-block-title[closed] + code + span + span span{
   visibility: hidden;
 }
+
+.obsidian-embedded-code-title__code-block-title > .title {
+  display: inline-block;
+  position: relative;
+  margin-left: 5px !important;
+  margin: 0;
+  padding: 0;
+
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* .obsidian-embedded-code-title__code-block-title > .icon-wrap {
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  background-position: center;
+
+  top: 50%;
+  transform: translateY(-50%);
+} */
+
+.code-block-wrap > pre > code[class*=language-]{
+  padding: 0em 0em 0em 0em !important;
+  /* padding-top: 0 !important; */
+  font-size: var(--editor-font-size) !important;
+  line-height: 1.5em !important;
+}

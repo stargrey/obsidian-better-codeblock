@@ -25,7 +25,9 @@ If you have a better idea, please submit an issue
 
 In version 1.0.4, add the language in the top right, like this:
 ![screenshots/image-20220601202203.png](screenshots/image-20220601202203.png)
-
+### Known issues
+- Sometimes the auto linefeed error, can be solved by switching the preview mode once
+- The PDF export cannot be auto linefeed
 ### Manually installing the plugin
 
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/obsidian-better-codeblock/`.
