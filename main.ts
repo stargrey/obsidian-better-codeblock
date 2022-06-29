@@ -258,7 +258,8 @@ export async function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostPro
 	/* const { lineStart, lineEnd } = ctx.getSectionInfo(el)
 	const lineSize = lineEnd - lineStart - 1 */
 	const contentList: string[] = codeElm.textContent.split(LINE_SPLIT_MARK)
-	const lineSize = contentList.length - 1
+	// const lineSize = contentList.length - 1
+	const lineSize = codeBlock.lineEnd - codeBlock.lineStart - 1
 
 	const cbMeta = { langName: lang, lineSize, pre, code: codeElm, title, isCollapse, div, contentList, highLightLines}
 
@@ -416,7 +417,7 @@ function addIconToTitle(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: Co
 // These codes refer to the https://github.com/lijyze/obsidian-advanced-codeblock
 function resizeNumWrapAndHLWrap(el: HTMLElement, context: MarkdownPostProcessorContext) {
 	setTimeout(async function(){ // 延时100毫秒以解决某些时候打开文件行高未被重设高度
-		// console.log('on esize')
+		// console.log('on resize')
 		let codeBlockEl : HTMLElement = el.querySelector('pre > code')
 		if(!codeBlockEl) return
 
