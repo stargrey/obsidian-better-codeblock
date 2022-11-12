@@ -18,6 +18,8 @@
 pre[class*=language-] {
   font-size: var(--editor-font-size);
   line-height: 1.5em;
+  position: relative !important;
+  padding-top: 38px !important;
   padding-bottom: 0px;
 }
 .obsidian-embedded-code-title__code-block-title + code[class*=language-]{
@@ -44,7 +46,7 @@ pre[class*=language-].code-block-pre__has-linenum {
 /* 代码行号 */
 .code-block-linenum-wrap {
   position: absolute;
-  /* top: 38px; */
+  top: 38px;
   left: 0px;
   min-width: 3em;
   font-size: var(--editor-font-size);

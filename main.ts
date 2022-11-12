@@ -11,8 +11,6 @@ const titleRegExp = /TI:"([^"]*)"/i
 const highLightLinesRegExp = /HL:"([^"]*)"/i
 const foldRegExp = /"FOLD"/i
 
-const CB_PADDING_TOP = "38px" // 代码块上边距
-
 interface Settings {
 	substitutionTokenForSpace: string;
 	titleBackgroundColor: string;
@@ -288,9 +286,6 @@ function createElement (tagName: string, defaultClassName?: string) {
 }
 
 function addCodeTitleWrapper(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
-	preElm.style.setProperty("position", "relative", "important");
-	preElm.style.setProperty("padding-top", CB_PADDING_TOP, "important");
-
 	let wrapper = document.createElement("pre")
 	if(cbMeta.isCollapse) {
 		wrapper.setAttribute("closed","")
@@ -348,7 +343,6 @@ function addLineNumber (plugin: BetterCodeBlock, cbMeta: CodeBlockMeta) {
 
 	// const { fontSize, lineHeight } = window.getComputedStyle(cbMeta.code)
 	const lineNumber = createElement('span', 'code-block-linenum-wrap')
-	lineNumber.style.top = CB_PADDING_TOP;
 	Array.from({ length: lineSize }, (v, k) => k).forEach(i => {
 	  const singleLine = createElement('span', 'code-block-linenum')
 	  // singleLine.style.fontSize = fontSize
