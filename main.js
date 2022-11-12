@@ -266,7 +266,7 @@ function addLineNumber(plugin, cbMeta) {
     lineNumber.appendChild(singleLine);
   });
   if (plugin.settings.showDividingLine) {
-    lineNumber.style.borderRight = "1px currentColor solid";
+    lineNumber.classList.add("code-block-linenum-wrap-show-dividing-line");
   }
   pre.appendChild(lineNumber);
   pre.classList.add("code-block-pre__has-linenum");

@@ -357,7 +357,7 @@ function addLineNumber (plugin: BetterCodeBlock, cbMeta: CodeBlockMeta) {
 	})
 
 	if(plugin.settings.showDividingLine) {
-		lineNumber.style.borderRight = "1px currentColor solid"
+		lineNumber.classList.add("code-block-linenum-wrap-show-dividing-line");
 	}
 
 	pre.appendChild(lineNumber)
