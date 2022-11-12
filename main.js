@@ -328,7 +328,7 @@ function resizeNumWrapAndHLWrap(el, context) {
           oneLineText = view.editor.getLine(codeBlockInfo.lineStart + i + 1);
         } else {
         }
-        span.innerHTML = oneLineText || "0";
+        span.textContent = oneLineText || "0";
         codeBlockEl.appendChild(span);
         span.style.display = "block";
         let lineHeight = span.getBoundingClientRect().height + "px";
