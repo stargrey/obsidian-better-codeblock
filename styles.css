@@ -1,3 +1,7 @@
+body {
+  --better-code-block-title-height: 38px;
+}
+
 .obsidian-embedded-code-title__code-block-title {
     position: absolute !important;
     top: 0;
@@ -19,9 +23,10 @@ pre[class*=language-] {
   font-size: var(--editor-font-size);
   line-height: 1.5em;
   position: relative !important;
-  padding-top: 38px !important;
+  padding-top: var(--better-code-block-title-height) !important;
   padding-bottom: 0px;
 }
+
 .obsidian-embedded-code-title__code-block-title + code[class*=language-]{
   padding: 0em 0em 0em 0em !important;
   /* padding-top: 0 !important; */
@@ -46,7 +51,7 @@ pre[class*=language-].code-block-pre__has-linenum {
 /* 代码行号 */
 .code-block-linenum-wrap {
   position: absolute;
-  top: 38px;
+  top: var(--better-code-block-title-height);
   left: 0px;
   min-width: 3em;
   font-size: var(--editor-font-size);
@@ -78,7 +83,7 @@ pre[class*=language-] .code-block-highlight-wrap {
   padding: 0;
   position: absolute;
   left: 0px;
-  top: 38px;
+  top: var(--better-code-block-title-height);
   width: 100%;
   height: 100%;
   background-color: transparent;
@@ -96,9 +101,9 @@ pre[class*=language-] .code-block-highlight-wrap span {
 :root {
   --admonition-details-icon: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M8.59 16.58L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.42z'/></svg>");
 }
-.obsidian-embedded-code-title__code-block-title{
-  line-height: 38px;
-  height: 38px !important;
+.obsidian-embedded-code-title__code-block-title {
+  line-height: var(--better-code-block-title-height);
+  height: var(--better-code-block-title-height) !important;
   color: currentColor !important;
 }
 
