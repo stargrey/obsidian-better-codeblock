@@ -11,7 +11,7 @@ const titleRegExp = /TI:"([^"]*)"/i
 const highLightLinesRegExp = /HL:"([^"]*)"/i
 const foldRegExp = /"FOLD"/i
 
-const CB_PADDING_TOP = "35px" // 代码块上边距
+const CB_PADDING_TOP = "38px" // 代码块上边距
 
 interface Settings {
 	substitutionTokenForSpace: string;

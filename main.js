@@ -59,7 +59,7 @@ var LINE_SPLIT_MARK = "\n";
 var titleRegExp = /TI:"([^"]*)"/i;
 var highLightLinesRegExp = /HL:"([^"]*)"/i;
 var foldRegExp = /"FOLD"/i;
-var CB_PADDING_TOP = "35px";
+var CB_PADDING_TOP = "38px";
 var DEFAULT_SETTINGS = {
   substitutionTokenForSpace: void 0,
   titleBackgroundColor: "#00000020",
