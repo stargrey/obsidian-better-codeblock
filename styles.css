@@ -1,4 +1,3 @@
-
 .obsidian-embedded-code-title__code-block-title {
     position: absolute !important;
     top: 0;
@@ -52,7 +51,7 @@ pre[class*=language-].code-block-pre__has-linenum {
   line-height: 1.5em;
   counter-reset: line-num;
   text-align: center;
-  /* border-right: #999 2px solid; 行号与代码间分隔线 */ 
+  /* border-right: #999 2px solid; 行号与代码间分隔线 */
   user-select: none;
   pointer-events: none;
   background-color: transparent;
