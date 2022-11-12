@@ -468,7 +468,7 @@ function resizeNumWrapAndHLWrap(el: HTMLElement, context: MarkdownPostProcessorC
 				// let fileContentLines = fileContent.split(/\n/g)
 				// oneLineText = fileContentLines[cache.sections]
 			}
-			span.innerHTML = oneLineText || "0"
+			span.textContent = oneLineText || "0"
 
 			codeBlockEl.appendChild(span)
 			span.style.display = 'block'
