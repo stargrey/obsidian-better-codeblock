@@ -11,8 +11,6 @@ const titleRegExp = /TI:"([^"]*)"/i
 const highLightLinesRegExp = /HL:"([^"]*)"/i
 const foldRegExp = /"FOLD"/i
 
-const CB_PADDING_TOP = "35px" // 代码块上边距
-
 interface Settings {
 	substitutionTokenForSpace: string;
 	titleBackgroundColor: string;
@@ -85,11 +83,11 @@ export default class BetterCodeBlock extends Plugin {
 	onunload () {
 		console.log('Unloading Better Code Block Plugin');
 	}
-	
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
-	
+
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
@@ -97,17 +95,17 @@ export default class BetterCodeBlock extends Plugin {
 
 class BetterCodeBlockTab extends PluginSettingTab {
 	plugin: BetterCodeBlock;
-  
+
 	constructor(app: App, plugin: BetterCodeBlock) {
 	  super(app, plugin);
 	  this.plugin = plugin;
 	}
-  
+
 	display(): void {
 	  let { containerEl } = this;
-  
+
 	  containerEl.empty();
-	
+
 	  new Setting(containerEl)
 		.setName("Exclude language list")
 		.setDesc("Title and line numbers do not apply in these languages, separate by `,`")
@@ -118,7 +116,7 @@ class BetterCodeBlockTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		})
 		)
-  
+
 	  new Setting(containerEl).setName("Font color of title").addText((tc) =>
 		tc
 		  .setPlaceholder("Enter a color")
@@ -128,7 +126,7 @@ class BetterCodeBlockTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		  })
 	  );
-  
+
 	  new Setting(containerEl)
 		.setName("Background color of title")
 		.addText((tc) =>
@@ -155,7 +153,7 @@ class BetterCodeBlockTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 		.setName("Show line number")
-		.addToggle((tc) => 
+		.addToggle((tc) =>
 		tc.setValue(this.plugin.settings.showLineNumber)
 		.onChange(async(value) => {
 			this.plugin.settings.showLineNumber = value;
@@ -197,7 +195,7 @@ export async function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostPro
 	if (plugin.settings.excludeLangs.some(eLangName => codeElm.classList.contains(`language-${eLangName}`))) {
 	  return
 	}
-	
+
 	codeElm.classList.forEach((value, key, parent) => {
 	  if (LANG_REG.test(value)) {
 		lang = value.replace('language-', '')
@@ -216,7 +214,7 @@ export async function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostPro
 	if(codeBlock) {
 		let view = app.workspace.getActiveViewOfType(MarkdownView)
 		codeBlockFirstLine = view.editor.getLine(codeBlock.lineStart)
-	} else { 
+	} else {
 		let file = app.vault.getAbstractFileByPath(context.sourcePath)
 		let cache = app.metadataCache.getCache(context.sourcePath)
 		let fileContent = await app.vault.cachedRead(<TFile> file)
@@ -288,9 +286,6 @@ function createElement (tagName: string, defaultClassName?: string) {
 }
 
 function addCodeTitleWrapper(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
-	preElm.style.setProperty("position", "relative", "important");
-	preElm.style.setProperty("padding-top", CB_PADDING_TOP, "important");
-
 	let wrapper = document.createElement("pre")
 	if(cbMeta.isCollapse) {
 		wrapper.setAttribute("closed","")
@@ -327,7 +322,7 @@ function addCodeTitle (plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: Cod
 	if(plugin.settings.titleFontColor) {
 		titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important")
 	}
-	
+
 	if(plugin.settings.showLangNameInTopRight) {
 		let langName = document.createElement("div"); // 在右侧添加代码类型
 		let langNameString = cbMeta.langName
@@ -348,16 +343,15 @@ function addLineNumber (plugin: BetterCodeBlock, cbMeta: CodeBlockMeta) {
 
 	// const { fontSize, lineHeight } = window.getComputedStyle(cbMeta.code)
 	const lineNumber = createElement('span', 'code-block-linenum-wrap')
-	lineNumber.style.top = CB_PADDING_TOP;
 	Array.from({ length: lineSize }, (v, k) => k).forEach(i => {
 	  const singleLine = createElement('span', 'code-block-linenum')
 	  // singleLine.style.fontSize = fontSize
 	  // singleLine.style.lineHeight = lineHeight
 	  lineNumber.appendChild(singleLine)
 	})
-	
+
 	if(plugin.settings.showDividingLine) {
-		lineNumber.style.borderRight = "1px currentColor solid"
+		lineNumber.classList.add("code-block-linenum-wrap-show-dividing-line");
 	}
 
 	pre.appendChild(lineNumber)
@@ -410,7 +404,7 @@ function addIconToTitle(plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: Co
 		iconWrap.appendChild(icon)
 		it.appendChild(iconWrap)
 	})
-	
+
 }
 
 // 在自动换行时对数字和高亮行重新设置高度
@@ -439,7 +433,7 @@ function resizeNumWrapAndHLWrap(el: HTMLElement, context: MarkdownPostProcessorC
 			return
 			// let file = app.vault.getAbstractFileByPath(context.sourcePath)
 			// let cache = app.metadataCache.getCache(context.sourcePath)
-	
+
 			// cache.sections?.forEach(async element => {
 			// 	if(element.type == "code") {
 			// 		lineStart = element.position.start.line
@@ -476,7 +470,7 @@ function resizeNumWrapAndHLWrap(el: HTMLElement, context: MarkdownPostProcessorC
 			let lineHeight = span.getBoundingClientRect().height + 'px' // 测量本行文字的高度
 
 			// console.log(lineHeight + '    ' + span.getBoundingClientRect().width);
-			
+
 			let numOneLine = numWrap? numWrap.childNodes[i] as HTMLElement : null
 			let hlOneLine = highWrap? highWrap.childNodes[i] as HTMLElement : null
 

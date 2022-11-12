@@ -59,7 +59,6 @@ var LINE_SPLIT_MARK = "\n";
 var titleRegExp = /TI:"([^"]*)"/i;
 var highLightLinesRegExp = /HL:"([^"]*)"/i;
 var foldRegExp = /"FOLD"/i;
-var CB_PADDING_TOP = "35px";
 var DEFAULT_SETTINGS = {
   substitutionTokenForSpace: void 0,
   titleBackgroundColor: "#00000020",
@@ -216,8 +215,6 @@ function createElement(tagName, defaultClassName) {
   return element;
 }
 function addCodeTitleWrapper(plugin, preElm, cbMeta) {
-  preElm.style.setProperty("position", "relative", "important");
-  preElm.style.setProperty("padding-top", CB_PADDING_TOP, "important");
   let wrapper = document.createElement("pre");
   if (cbMeta.isCollapse) {
     wrapper.setAttribute("closed", "");
@@ -260,13 +257,12 @@ function addLineNumber(plugin, cbMeta) {
   const { lineSize, pre, div } = cbMeta;
   div.classList.add("code-block-wrap");
   const lineNumber = createElement("span", "code-block-linenum-wrap");
-  lineNumber.style.top = CB_PADDING_TOP;
   Array.from({ length: lineSize }, (v, k) => k).forEach((i) => {
     const singleLine = createElement("span", "code-block-linenum");
     lineNumber.appendChild(singleLine);
   });
   if (plugin.settings.showDividingLine) {
-    lineNumber.style.borderRight = "1px currentColor solid";
+    lineNumber.classList.add("code-block-linenum-wrap-show-dividing-line");
   }
   pre.appendChild(lineNumber);
   pre.classList.add("code-block-pre__has-linenum");
