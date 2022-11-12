@@ -74,7 +74,7 @@ pre[class*=language-].code-block-pre__has-linenum {
 }
 
 .code-block-linenum-wrap-show-dividing-line {
-  border-right: 1px solid currentColor;
+  border-right: var(--divider-width) solid var(--divider-color);
 }
 
 /* 代码高亮 */
