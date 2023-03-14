@@ -173,3 +173,21 @@ pre[class*=language-] .code-block-highlight-wrap span {
   font-size: var(--editor-font-size) !important;
   line-height: 1.5em !important;
 }
+
+.better-code-block-line-show  {
+  position: relative !important;
+  padding-left: 4em !important;
+}
+
+
+.better-code-block-line-num {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-block;
+  min-width: 3.5em;
+  font-size: var(--editor-font-size);
+  line-height: 1.5em;
+  text-align: center;
+  user-select: none;
+}
