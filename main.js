@@ -76,6 +76,25 @@ var LineNumberWiget = class extends import_view.WidgetType {
     return div;
   }
 };
+var TitleWiget = class extends import_view.WidgetType {
+  constructor(title, setting) {
+    super();
+    this.title = title;
+    this.setting = setting;
+  }
+  toDOM(view) {
+    const div = document.createElement("div");
+    div.className = "better-code-block-title";
+    if (this.setting.titleBackgroundColor) {
+      div.style.backgroundColor = this.setting.titleBackgroundColor;
+    }
+    if (this.setting.titleFontColor) {
+      div.style.color = this.setting.titleFontColor;
+    }
+    div.innerText = this.title;
+    return div;
+  }
+};
 var LivePreviewPlugin = class {
   constructor(view) {
     this.decorations = this.buildDecorations(view);
@@ -92,24 +111,31 @@ var LivePreviewPlugin = class {
   }
   buildDecorations(view) {
     const builder = new import_state.RangeSetBuilder();
-    for (const { from, to } of view.visibleRanges) {
-      (0, import_language.syntaxTree)(view.state).iterate({
-        from,
-        to,
-        enter: (node) => {
-          var _a;
-          if (node.type.name.startsWith("HyperMD-codeblock_HyperMD-codeblock-begin")) {
-            const headLine = this.getLine(view, node.node);
-            const lang = (_a = headLine.text.match(/^```\w+ ?/)) == null ? void 0 : _a[0].slice(3, -1);
-            if (lang && !this.setting.excludeLangs.includes(lang)) {
-              const { highLightLines } = analyseFirstLine(headLine.text);
-              this.renderCodeBlockNodes(builder, node.node.nextSibling, view, highLightLines);
+    const { from, to } = view.viewport;
+    (0, import_language.syntaxTree)(view.state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        var _a;
+        if (node.type.name.startsWith("HyperMD-codeblock_HyperMD-codeblock-begin")) {
+          const headLine = this.getLine(view, node.node);
+          const lang = (_a = headLine.text.match(/^```\w+ ?/)) == null ? void 0 : _a[0].slice(3, -1);
+          if (lang && !this.setting.excludeLangs.includes(lang)) {
+            const { highLightLines, title } = analyseFirstLine(headLine.text);
+            if (title && this.setting.showTitle) {
+              this.renderTitle(builder, headLine, title);
             }
+            this.renderCodeBlockNodes(builder, node.node.nextSibling, view, highLightLines);
           }
         }
-      });
-    }
+      }
+    });
     return builder.finish();
+  }
+  renderTitle(builder, line, title) {
+    builder.add(line.from, line.from, import_view.Decoration.widget({
+      widget: new TitleWiget(title, this.setting)
+    }));
   }
   renderCodeBlockNodes(builder, node, view, highLightLines) {
     let index = 0;
@@ -158,6 +184,7 @@ var DEFAULT_SETTINGS = {
   titleFontColor: void 0,
   highLightColor: "#2d82cc20",
   excludeLangs: [],
+  showTitle: true,
   showLineNumber: true,
   showDividingLine: false,
   showLangNameInTopRight: true
@@ -205,6 +232,11 @@ var BetterCodeBlockTab = class extends import_obsidian.PluginSettingTab {
     containerEl.empty();
     new import_obsidian.Setting(containerEl).setName("Exclude language list").setDesc("Title and line numbers do not apply in these languages, separate by `,`").addText((text) => text.setPlaceholder("like todoist,other,...").setValue(this.plugin.settings.excludeLangs.join(",")).onChange((value) => __async(this, null, function* () {
       this.plugin.settings.excludeLangs = value.split(",");
+      this.refreshEditor();
+      yield this.plugin.saveSettings();
+    })));
+    new import_obsidian.Setting(containerEl).setName("Show title").addToggle((tc) => tc.setValue(this.plugin.settings.showTitle).onChange((value) => __async(this, null, function* () {
+      this.plugin.settings.showTitle = value;
       this.refreshEditor();
       yield this.plugin.saveSettings();
     })));
@@ -328,12 +360,14 @@ function addCodeTitleWrapper(plugin, preElm, cbMeta) {
 }
 function addCodeTitle(plugin, preElm, cbMeta) {
   let wrapper = preElm.querySelector(".obsidian-embedded-code-title__code-block-title");
-  let titleElm = document.createElement("div");
-  titleElm.className = "title";
-  titleElm.appendText(cbMeta.title);
-  wrapper.appendChild(titleElm);
-  if (plugin.settings.titleFontColor) {
-    titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important");
+  if (plugin.settings.showTitle) {
+    let titleElm = document.createElement("div");
+    titleElm.className = "title";
+    titleElm.appendText(cbMeta.title);
+    wrapper.appendChild(titleElm);
+    if (plugin.settings.titleFontColor) {
+      titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important");
+    }
   }
   if (plugin.settings.showLangNameInTopRight) {
     let langName = document.createElement("div");

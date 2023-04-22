@@ -22,6 +22,7 @@ export interface Settings {
 
 	excludeLangs: string[]; // 需要排除的语言
 
+	showTitle: boolean
 	showLineNumber: boolean; // 显示行号
 	showDividingLine: boolean;
 	showLangNameInTopRight: boolean;
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 	excludeLangs: [],
 
+	showTitle: true,
 	showLineNumber: true,
 	showDividingLine: false,
 	showLangNameInTopRight: true
@@ -127,6 +129,16 @@ class BetterCodeBlockTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		})
 		)
+
+		new Setting(containerEl).setName("Show title").addToggle((tc) =>
+		tc
+			.setValue(this.plugin.settings.showTitle)
+			.onChange(async (value) => {
+				this.plugin.settings.showTitle = value;
+				this.refreshEditor();
+				await this.plugin.saveSettings();
+			})
+	);
   
 	  new Setting(containerEl).setName("Font color of title").addText((tc) =>
 		tc
@@ -317,14 +329,16 @@ function addCodeTitleWrapper(plugin: BetterCodeBlock, preElm: HTMLElement, cbMet
 function addCodeTitle (plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
 	let wrapper = preElm.querySelector(".obsidian-embedded-code-title__code-block-title")
 
-	let titleElm = document.createElement("div")
-	titleElm.className = "title"
-
-	titleElm.appendText(cbMeta.title)
-	wrapper.appendChild(titleElm)
-
-	if(plugin.settings.titleFontColor) {
-		titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important")
+	if(plugin.settings.showTitle) {
+		let titleElm = document.createElement("div")
+		titleElm.className = "title"
+	
+		titleElm.appendText(cbMeta.title)
+		wrapper.appendChild(titleElm)
+	
+		if(plugin.settings.titleFontColor) {
+			titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important")
+		}
 	}
 	
 	if(plugin.settings.showLangNameInTopRight) {

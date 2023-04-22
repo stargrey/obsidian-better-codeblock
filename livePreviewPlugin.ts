@@ -10,7 +10,7 @@ import {
 } from "@codemirror/view";
 import { Settings, analyseFirstLine } from "./main";
 import { syntaxTree } from "@codemirror/language";
-import { RangeSetBuilder, StateEffect } from "@codemirror/state";
+import { Line, RangeSetBuilder, StateEffect } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
 export const resetEffect = StateEffect.define();
@@ -27,6 +27,25 @@ class LineNumberWiget extends WidgetType {
 		if (this.setting.showDividingLine) {
 			div.style.borderRight = "1px currentColor solid";
 		}
+		return div;
+	}
+}
+
+class TitleWiget extends WidgetType {
+	constructor(private title: string, private setting: Settings) {
+		super();
+	}
+
+	toDOM(view: EditorView): HTMLElement {
+		const div = document.createElement("div");
+		div.className = "better-code-block-title";
+		if (this.setting.titleBackgroundColor) {
+			div.style.backgroundColor = this.setting.titleBackgroundColor;
+		}
+		if (this.setting.titleFontColor) {
+			div.style.color = this.setting.titleFontColor;
+		}
+		div.innerText = this.title;
 		return div;
 	}
 }
@@ -74,6 +93,9 @@ class LivePreviewPlugin implements PluginValue {
 						const { highLightLines, title } = analyseFirstLine(
 							headLine.text
 						);
+						if (title && this.setting.showTitle) {
+							this.renderTitle(builder, headLine, title);
+						}
 						this.renderCodeBlockNodes(
 							builder,
 							node.node.nextSibling,
@@ -86,6 +108,20 @@ class LivePreviewPlugin implements PluginValue {
 		});
 
 		return builder.finish();
+	}
+
+	private renderTitle(
+		builder: RangeSetBuilder<Decoration>,
+		line: Line,
+		title: string
+	) {
+		builder.add(
+			line.from,
+			line.from,
+			Decoration.widget({
+				widget: new TitleWiget(title, this.setting),
+			})
+		);
 	}
 
 	private renderCodeBlockNodes(
