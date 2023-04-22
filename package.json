@@ -13,6 +13,10 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@codemirror/language": "^6.6.0",
+		"@codemirror/state": "^6.2.0",
+		"@codemirror/view": "^6.0.0",
+		"@lezer/common": "^1.0.2",
+		"@types/codemirror": "^5.60.7",
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "^5.2.0",
 		"@typescript-eslint/parser": "^5.2.0",

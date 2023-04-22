@@ -56,35 +56,34 @@ class LivePreviewPlugin implements PluginValue {
 
 	buildDecorations(view: EditorView): DecorationSet {
 		const builder = new RangeSetBuilder<Decoration>();
-		for (const { from, to } of view.visibleRanges) {
-			syntaxTree(view.state).iterate({
-				from,
-				to,
-				enter: (node) => {
-					if (
-						node.type.name.startsWith(
-							"HyperMD-codeblock_HyperMD-codeblock-begin"
-						)
-					) {
-						const headLine = this.getLine(view, node.node);
-						const lang = headLine.text
-							.match(/^```\w+ ?/)?.[0]
-							.slice(3, -1);
-						if (lang && !this.setting.excludeLangs.includes(lang)) {
-							const { highLightLines } = analyseFirstLine(
-								headLine.text
-							);
-							this.renderCodeBlockNodes(
-								builder,
-								node.node.nextSibling,
-								view,
-								highLightLines
-							);
-						}
+		const { from, to } = view.viewport;
+		syntaxTree(view.state).iterate({
+			from,
+			to,
+			enter: (node) => {
+				if (
+					node.type.name.startsWith(
+						"HyperMD-codeblock_HyperMD-codeblock-begin"
+					)
+				) {
+					const headLine = this.getLine(view, node.node);
+					const lang = headLine.text
+						.match(/^```\w+ ?/)?.[0]
+						.slice(3, -1);
+					if (lang && !this.setting.excludeLangs.includes(lang)) {
+						const { highLightLines, title } = analyseFirstLine(
+							headLine.text
+						);
+						this.renderCodeBlockNodes(
+							builder,
+							node.node.nextSibling,
+							view,
+							highLightLines
+						);
 					}
-				},
-			});
-		}
+				}
+			},
+		});
 
 		return builder.finish();
 	}
