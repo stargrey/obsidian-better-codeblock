@@ -1,6 +1,7 @@
 import { linkSync } from 'fs';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, MarkdownPostProcessorContext, Menu, SettingTab, TAbstractFile, TFile, SectionCache, Vault } from 'obsidian';
 import { json } from 'stream/consumers';
+import  { resetEffect, createLivePlugin } from "./livePreviewPlugin"
 
 const DEFAULT_LANG_ATTR = 'language-text'
 const DEFAULT_LANG = ''
@@ -13,7 +14,7 @@ const foldRegExp = /"FOLD"/i
 
 const CB_PADDING_TOP = "35px" // 代码块上边距
 
-interface Settings {
+export interface Settings {
 	substitutionTokenForSpace: string;
 	titleBackgroundColor: string;
 	titleFontColor: string;
@@ -21,6 +22,7 @@ interface Settings {
 
 	excludeLangs: string[]; // 需要排除的语言
 
+	showTitle: boolean
 	showLineNumber: boolean; // 显示行号
 	showDividingLine: boolean;
 	showLangNameInTopRight: boolean;
@@ -34,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 	excludeLangs: [],
 
+	showTitle: true,
 	showLineNumber: true,
 	showDividingLine: false,
 	showLangNameInTopRight: true
@@ -73,6 +76,7 @@ export default class BetterCodeBlock extends Plugin {
 		console.log("Loading Better Code Block Plugin");
 		await this.loadSettings();
 		this.addSettingTab(new BetterCodeBlockTab(this.app, this));
+		this.registerEditorExtension(createLivePlugin(this.settings))
 		this.registerMarkdownPostProcessor((el, ctx) => {
 			BetterCodeBlocks(el, ctx, this)
 			app.workspace.on('resize', () => {
@@ -102,6 +106,12 @@ class BetterCodeBlockTab extends PluginSettingTab {
 	  super(app, plugin);
 	  this.plugin = plugin;
 	}
+
+	refreshEditor() {
+		// @ts-ignore
+		const editor = app.workspace.getActiveViewOfType(MarkdownView).editor.cm as EditorView;
+		editor.dispatch({ effects: resetEffect.of(null) });
+	}
   
 	display(): void {
 	  let { containerEl } = this;
@@ -115,9 +125,20 @@ class BetterCodeBlockTab extends PluginSettingTab {
 		.setValue(this.plugin.settings.excludeLangs.join(','))
 		.onChange(async (value) => {
 			this.plugin.settings.excludeLangs = value.split(',');
+			this.refreshEditor()
 			await this.plugin.saveSettings();
 		})
 		)
+
+		new Setting(containerEl).setName("Show title").addToggle((tc) =>
+		tc
+			.setValue(this.plugin.settings.showTitle)
+			.onChange(async (value) => {
+				this.plugin.settings.showTitle = value;
+				this.refreshEditor();
+				await this.plugin.saveSettings();
+			})
+	);
   
 	  new Setting(containerEl).setName("Font color of title").addText((tc) =>
 		tc
@@ -149,6 +170,7 @@ class BetterCodeBlockTab extends PluginSettingTab {
 			.setValue(this.plugin.settings.highLightColor)
 			.onChange(async (value) => {
 			  this.plugin.settings.highLightColor = value;
+				this.refreshEditor()
 			  await this.plugin.saveSettings();
 			})
 		);
@@ -159,6 +181,7 @@ class BetterCodeBlockTab extends PluginSettingTab {
 		tc.setValue(this.plugin.settings.showLineNumber)
 		.onChange(async(value) => {
 			this.plugin.settings.showLineNumber = value;
+			this.refreshEditor()
 			await this.plugin.saveSettings();
 		})
 		)
@@ -169,6 +192,7 @@ class BetterCodeBlockTab extends PluginSettingTab {
 		tc.setValue(this.plugin.settings.showDividingLine)
 		.onChange(async(value) => {
 			this.plugin.settings.showDividingLine = value;
+			this.refreshEditor()
 			await this.plugin.saveSettings();
 		})
 		)
@@ -237,20 +261,7 @@ export async function BetterCodeBlocks(el: HTMLElement, context: MarkdownPostPro
 		return
 	}
 
-	let title: string = ""
-	let highLightLines: number[] = []
-	if(codeBlockFirstLine.match(titleRegExp) != null) {
-		title = codeBlockFirstLine.match(titleRegExp)[1]
-	}
-	if(codeBlockFirstLine.match(highLightLinesRegExp) != null) {
-		let highLightLinesInfo = codeBlockFirstLine.match(highLightLinesRegExp)[1]
-		highLightLines = analyseHighLightLines(highLightLinesInfo)
-	}
-
-	let isCollapse = false;
-	if(foldRegExp.test(codeBlockFirstLine)) {
-		isCollapse = true
-	}
+	const {title, highLightLines, isCollapse} = analyseFirstLine(codeBlockFirstLine)
 
 	const pre = codeElm.parentElement // code-block-pre__has-linenum
 	const div = pre.parentElement // class code-block-wrap
@@ -318,14 +329,16 @@ function addCodeTitleWrapper(plugin: BetterCodeBlock, preElm: HTMLElement, cbMet
 function addCodeTitle (plugin: BetterCodeBlock, preElm: HTMLElement, cbMeta: CodeBlockMeta) {
 	let wrapper = preElm.querySelector(".obsidian-embedded-code-title__code-block-title")
 
-	let titleElm = document.createElement("div")
-	titleElm.className = "title"
-
-	titleElm.appendText(cbMeta.title)
-	wrapper.appendChild(titleElm)
-
-	if(plugin.settings.titleFontColor) {
-		titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important")
+	if(plugin.settings.showTitle) {
+		let titleElm = document.createElement("div")
+		titleElm.className = "title"
+	
+		titleElm.appendText(cbMeta.title)
+		wrapper.appendChild(titleElm)
+	
+		if(plugin.settings.titleFontColor) {
+			titleElm.style.setProperty("color", plugin.settings.titleFontColor, "important")
+		}
 	}
 	
 	if(plugin.settings.showLangNameInTopRight) {
@@ -527,4 +540,23 @@ function exportPDF(el: HTMLElement, plugin: BetterCodeBlock, codeBlockFirstLines
 		}
 		addLineHighLight(plugin, cbMeta.pre, cbMeta)
 	})
+}
+
+export function analyseFirstLine(firstline: string) {
+	let title = ""
+	let highLightLines: number[] = []
+	if(firstline.match(titleRegExp) != null) {
+		title = firstline.match(titleRegExp)[1]
+	}
+	if(firstline.match(highLightLinesRegExp) != null) {
+		const highLightLinesInfo = firstline.match(highLightLinesRegExp)[1]
+		highLightLines = analyseHighLightLines(highLightLinesInfo)
+	}
+
+	let isCollapse = false;
+	if(foldRegExp.test(firstline)) {
+		isCollapse = true
+	}
+
+	return {title, highLightLines, isCollapse}
 }
